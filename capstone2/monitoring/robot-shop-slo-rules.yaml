@@ -30,6 +30,7 @@ spec:
             severity: critical
             application: robot-shop
           annotations:
+            runbook_url: "https://github.com/davinane/robot-shop/blob/master/capstone2/docs/robot-shop-runbook.md"
             summary: "Robot Shop is unavailable"
             description: "The Robot Shop HTTP availability probe has failed for at least two minutes."
 
