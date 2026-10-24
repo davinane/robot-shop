@@ -1,0 +1,26 @@
+grafana:
+  enabled: true
+  persistence:
+    enabled: false
+  service:
+    type: ClusterIP
+
+prometheus:
+  prometheusSpec:
+    retention: 24h
+    retentionSize: 2GB
+    storageSpec: {}
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+alertmanager:
+  enabled: true
+
+kubeEtcd:
+  enabled: false
+
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false

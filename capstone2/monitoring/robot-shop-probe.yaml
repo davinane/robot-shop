@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: robot-shop-availability
+  namespace: observability
+  labels:
+    release: monitoring
+spec:
+  jobName: robot-shop-availability
+  interval: 30s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter-prometheus-blackbox-exporter.observability.svc.cluster.local:9115
+    scheme: http
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - "http://web.robot-shop.svc.cluster.local:8080/"
+      labels:
+        application: robot-shop
+        environment: capstone

@@ -1,0 +1,2 @@
+# Jaeger v2 single-instance capstone deployment.
+# Use chart defaults; verify actual storage at runtime.

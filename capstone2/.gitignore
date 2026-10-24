@@ -1,0 +1,20 @@
+# Troubleshooting backups
+*.bak
+*.before-fix.yaml
+*.pre-persistence.bak
+*.failed-upgrade.bak
+*.before-health-fix.bak
+
+# Generated Kubernetes manifests
+evidence/*-rendered.yaml
+
+# Sensitive or local files
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.pem
+*.key
+.env
+.env.*
+kubeconfig

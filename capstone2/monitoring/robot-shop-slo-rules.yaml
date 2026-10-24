@@ -1,0 +1,60 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: robot-shop-slo-rules
+  namespace: observability
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: robot-shop.slo
+      interval: 30s
+      rules:
+        - record: robot_shop:availability:ratio_30d
+          expr: |
+            avg_over_time(
+              probe_success{job="robot-shop-availability"}[30d]
+            )
+
+        - record: robot_shop:latency_under_1s:ratio_30d
+          expr: |
+            avg_over_time(
+              (probe_duration_seconds{job="robot-shop-availability"} < bool 1)[30d:30s]
+            )
+
+        - alert: RobotShopUnavailable
+          expr: |
+            probe_success{job="robot-shop-availability"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            application: robot-shop
+          annotations:
+            summary: "Robot Shop is unavailable"
+            description: "The Robot Shop HTTP availability probe has failed for at least two minutes."
+
+        - alert: RobotShopHighLatency
+          expr: |
+            probe_duration_seconds{job="robot-shop-availability"} > 1
+          for: 5m
+          labels:
+            severity: warning
+            application: robot-shop
+          annotations:
+            summary: "Robot Shop HTTP probe is slow"
+            description: "Synthetic HTTP probe duration has exceeded one second for five minutes."
+
+        - alert: RobotShopAvailabilityBudgetBurn
+          expr: |
+            (
+              1 - avg_over_time(
+                probe_success{job="robot-shop-availability"}[1h]
+              )
+            ) > 0.0144
+          for: 5m
+          labels:
+            severity: warning
+            application: robot-shop
+          annotations:
+            summary: "Robot Shop availability error budget burning"
+            description: "One-hour synthetic availability failure ratio exceeds 1.44%."

@@ -1,0 +1,13 @@
+# TS Academy Capstone 2 overrides
+psp:
+  enabled: false
+
+image:
+  repo: robotshop
+  version: latest
+  pullPolicy: IfNotPresent
+
+redis:
+  storageClassName: gp3
+
+nodeport: false
