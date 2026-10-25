@@ -22,31 +22,60 @@ This project extends the Kubernetes environment from Capstone 1 by deploying Sta
 
 ## Architecture
 
-```text
-Users -> AWS Load Balancer -> Robot Shop web
-                                  |
-                     catalogue / cart / payment / other services
-                                  |
-                       MongoDB / Redis / MySQL / RabbitMQ
+```mermaid
+flowchart TB
+    U["Users"] --> LB["AWS Load Balancer"]
+    LG["Load Generator"] --> WEB
 
-Robot Shop and load generator (namespace: robot-shop)
-                |
-                +-- metrics / blackbox availability --> Prometheus --> Grafana
-                |                                        |
-                |                                        +--> Alertmanager --> Slack
-                |
-                +-- container logs --> Fluent Bit --> Loki --> Grafana Explore
-                |
-                +-- payment OTLP traces --> OpenTelemetry Collector --> Jaeger
+    subgraph EKS["AWS EKS Cluster"]
+      subgraph APP["Namespace: robot-shop"]
+        WEB["Web Frontend"]
+        CAT["Catalogue"]
+        CART["Cart"]
+        PAY["Payment"]
+        DB[("MongoDB / Redis / MySQL / RabbitMQ")]
+        WEB --> CAT
+        WEB --> CART
+        WEB --> PAY
+        CAT --> DB
+        CART --> DB
+        PAY --> DB
+      end
 
-Observability components (namespace: observability)
+      subgraph OBS["Namespace: observability"]
+        BB["Blackbox Exporter"]
+        PROM["Prometheus"]
+        GRAF["Grafana"]
+        AM["Alertmanager"]
+        FB["Fluent Bit"]
+        LOKI["Loki"]
+        OTEL["OpenTelemetry Collector"]
+        JAEGER["Jaeger"]
+      end
+    end
+
+    LB --> WEB
+    BB -. "HTTP availability probe" .-> WEB
+    BB --> PROM
+    PAY -- "Prometheus metrics" --> PROM
+    PROM --> GRAF
+    PROM -- "Firing alerts" --> AM
+    AM --> SLACK["Slack notifications"]
+    APP -. "Container logs" .-> FB
+    FB --> LOKI
+    LOKI --> GRAF
+    PAY -- "OTLP traces" --> OTEL
+    OTEL --> JAEGER
 ```
+
+
+## Technology Stack
 
 | Component | Technology | Purpose |
 |---|---|---|
 | Platform | AWS EKS, Kubernetes, Helm | Run Robot Shop and observability services |
 | Load generation | Robot Shop load generator | Produce sustained application traffic |
-| Metrics | Prometheus, blackbox probing | Measure requests, errors, latency and availability |
+| Metrics | Prometheus, Blackbox Exporter | Measure requests, errors, latency and availability |
 | Dashboards | Grafana | Visualize service behavior |
 | Logging | Fluent Bit, Loki | Collect and search container logs |
 | Tracing | OpenTelemetry, Jaeger | Trace payment HTTP requests |

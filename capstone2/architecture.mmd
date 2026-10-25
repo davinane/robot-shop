@@ -1,0 +1,44 @@
+
+flowchart TB
+    U["Users"] --> LB["AWS Load Balancer"]
+    LG["Load Generator"] --> WEB
+
+    subgraph EKS["AWS EKS Cluster"]
+      subgraph APP["Namespace: robot-shop"]
+        WEB["Web Frontend"]
+        CAT["Catalogue"]
+        CART["Cart"]
+        PAY["Payment"]
+        DB[("MongoDB / Redis / MySQL / RabbitMQ")]
+        WEB --> CAT
+        WEB --> CART
+        WEB --> PAY
+        CAT --> DB
+        CART --> DB
+        PAY --> DB
+      end
+
+      subgraph OBS["Namespace: observability"]
+        BB["Blackbox Exporter"]
+        PROM["Prometheus"]
+        GRAF["Grafana"]
+        AM["Alertmanager"]
+        FB["Fluent Bit"]
+        LOKI["Loki"]
+        OTEL["OpenTelemetry Collector"]
+        JAEGER["Jaeger"]
+      end
+    end
+
+    LB --> WEB
+    BB -. "HTTP availability probe" .-> WEB
+    BB --> PROM
+    PAY -- "Prometheus metrics" --> PROM
+    PROM --> GRAF
+    PROM -- "Firing alerts" --> AM
+    AM --> SLACK["Slack notifications"]
+    APP -. "Container logs" .-> FB
+    FB --> LOKI
+    LOKI --> GRAF
+    PAY -- "OTLP traces" --> OTEL
+    OTEL --> JAEGER
