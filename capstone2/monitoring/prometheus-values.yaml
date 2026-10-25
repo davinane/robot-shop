@@ -15,6 +15,12 @@ prometheus:
 
 alertmanager:
   enabled: true
+  alertmanagerSpec:
+    alertmanagerConfiguration:
+      name: robot-shop-slack
+    alertmanagerConfigSelector:
+      matchLabels:
+        release: monitoring
 
 kubeEtcd:
   enabled: false

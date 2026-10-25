@@ -1,7 +1,11 @@
 {
   "uid": "robot-shop-capstone",
   "title": "Robot Shop | Capstone Observability",
-  "tags": ["robot-shop", "capstone", "slo"],
+  "tags": [
+    "robot-shop",
+    "capstone",
+    "slo"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -15,8 +19,16 @@
       "id": 1,
       "title": "Robot Shop HTTP Availability",
       "type": "stat",
-      "gridPos": {"h": 7, "w": 6, "x": 0, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "probe_success{job=\"robot-shop-availability\"}",
@@ -31,16 +43,28 @@
             {
               "type": "value",
               "options": {
-                "0": {"text": "DOWN", "color": "red"},
-                "1": {"text": "UP", "color": "green"}
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
               }
             }
           ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "red", "value": null},
-              {"color": "green", "value": 1}
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
@@ -50,8 +74,16 @@
       "id": 2,
       "title": "HTTP Response Duration",
       "type": "stat",
-      "gridPos": {"h": 7, "w": 6, "x": 6, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "probe_duration_seconds{job=\"robot-shop-availability\"}",
@@ -69,8 +101,16 @@
       "id": 3,
       "title": "Availability SLO | Available History",
       "type": "stat",
-      "gridPos": {"h": 7, "w": 6, "x": 12, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "100 * robot_shop:availability:ratio_30d",
@@ -84,8 +124,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "red", "value": null},
-              {"color": "green", "value": 99.9}
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
             ]
           }
         }
@@ -95,8 +141,16 @@
       "id": 4,
       "title": "Under 1s SLO | Available History",
       "type": "stat",
-      "gridPos": {"h": 7, "w": 6, "x": 18, "y": 0},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "100 * robot_shop:latency_under_1s:ratio_30d",
@@ -110,8 +164,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "red", "value": null},
-              {"color": "green", "value": 95}
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 95
+              }
             ]
           }
         }
@@ -121,8 +181,16 @@
       "id": 5,
       "title": "Availability History",
       "type": "timeseries",
-      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 7},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "probe_success{job=\"robot-shop-availability\"}",
@@ -141,8 +209,16 @@
       "id": 6,
       "title": "HTTP Probe Duration History",
       "type": "timeseries",
-      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 7},
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "probe_duration_seconds{job=\"robot-shop-availability\"}",
@@ -160,8 +236,16 @@
       "id": 7,
       "title": "Robot Shop Application Logs",
       "type": "logs",
-      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 16},
-      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
           "expr": "{kubernetes_namespace_name=\"robot-shop\"}",
@@ -172,6 +256,154 @@
         "showTime": true,
         "showLabels": false,
         "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 8,
+      "title": "Payment HTTP Request Rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(robot_shop_http_requests_total{namespace=\"robot-shop\",service=\"payment\",method=\"POST\"}[5m]))",
+          "legendFormat": "Payment HTTP Request Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      }
+    },
+    {
+      "id": 9,
+      "title": "Payment HTTP 5xx Error Rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(robot_shop_http_requests_total{namespace=\"robot-shop\",service=\"payment\",method=\"POST\",status=~\"5..\"}[5m])) or vector(0)",
+          "legendFormat": "Payment HTTP 5xx Error Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      }
+    },
+    {
+      "id": 10,
+      "title": "Payment HTTP 5xx Error Percentage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(rate(robot_shop_http_requests_total{namespace=\"robot-shop\",service=\"payment\",method=\"POST\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(robot_shop_http_requests_total{namespace=\"robot-shop\",service=\"payment\",method=\"POST\"}[5m])), 0.000001)",
+          "legendFormat": "Payment HTTP 5xx Error Percentage"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 34
+      }
+    },
+    {
+      "id": 11,
+      "title": "Payment p95 Response Latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(robot_shop_http_request_duration_seconds_bucket{namespace=\"robot-shop\",service=\"payment\",method=\"POST\"}[5m])))",
+          "legendFormat": "Payment p95 Response Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 34
       }
     }
   ]

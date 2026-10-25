@@ -22,14 +22,13 @@ spec:
       {{ end }}
       containers:
       - name: payment
-        image: {{ .Values.image.repo }}/rs-payment:{{ .Values.image.version }}
+        image: {{ .Values.payment.image }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        # agent networking access
         env:
-          - name: INSTANA_AGENT_HOST
-            valueFrom:
-              fieldRef:
-                fieldPath: status.hostIP
+          - name: OTEL_SERVICE_NAME
+            value: robot-shop-payment
+          - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+            value: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318/v1/traces
           {{- if .Values.payment.gateway }}
           - name: PAYMENT_GATEWAY
             value: {{ .Values.payment.gateway }}
@@ -39,10 +38,10 @@ spec:
         resources:
           limits:
             cpu: 200m
-            memory: 100Mi
+            memory: 256Mi
           requests:
             cpu: 100m
-            memory: 50Mi
+            memory: 128Mi
       restartPolicy: Always
       {{- with .Values.payment.affinity }}
       affinity:

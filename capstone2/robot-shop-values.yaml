@@ -11,3 +11,5 @@ redis:
   storageClassName: gp3
 
 nodeport: false
+payment:
+  image: 358230849784.dkr.ecr.ca-central-1.amazonaws.com/robot-shop-payment:otel-v2

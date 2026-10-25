@@ -1,6 +1,5 @@
 import random
 
-import instana
 import os
 import sys
 import time
@@ -18,8 +17,61 @@ from rabbitmq import Publisher
 import prometheus_client
 from prometheus_client import Counter, Histogram
 
+
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from flask import g
+
+resource = Resource.create({"service.name": "robot-shop-payment"})
+provider = TracerProvider(resource=resource)
+provider.add_span_processor(
+    BatchSpanProcessor(
+        OTLPSpanExporter(
+            endpoint=os.getenv(
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+                "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318/v1/traces"
+            )
+        )
+    )
+)
+trace.set_tracer_provider(provider)
+
+HTTP_REQUESTS = Counter(
+    "robot_shop_http_requests",
+    "Total HTTP requests handled by payment",
+    ["method", "route", "status"]
+)
+
+HTTP_DURATION = Histogram(
+    "robot_shop_http_request_duration_seconds",
+    "Payment HTTP request duration in seconds",
+    ["method", "route"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
+)
+
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
+
+FlaskInstrumentor().instrument_app(app)
+
+@app.before_request
+def start_http_timer():
+    g.http_start = time.monotonic()
+
+@app.after_request
+def record_http_metrics(response):
+    route = request.url_rule.rule if request.url_rule else "unmatched"
+    method = request.method
+    HTTP_REQUESTS.labels(method, route, str(response.status_code)).inc()
+    HTTP_DURATION.labels(method, route).observe(
+        time.monotonic() - getattr(g, "http_start", time.monotonic())
+    )
+    return response
+
 
 CART = os.getenv('CART_HOST', 'cart')
 USER = os.getenv('USER_HOST', 'user')
@@ -45,7 +97,7 @@ def health():
 @app.route('/metrics', methods=['GET'])
 def metrics():
     res = []
-    for m in PromMetrics.values():
+    for m in list(PromMetrics.values()) + [HTTP_REQUESTS, HTTP_DURATION]:
         res.append(prometheus_client.generate_latest(m))
 
     return Response(res, mimetype='text/plain')
@@ -57,6 +109,27 @@ def pay(id):
     cart = request.get_json()
     app.logger.info(cart)
 
+    # Validate the cart before processing its items.
+    if not isinstance(cart, dict):
+        app.logger.warning('cart not valid: expected an object')
+        return 'cart not valid', 400
+
+    items = cart.get('items')
+
+    if (
+        not isinstance(items, list)
+        or not items
+        or not all(isinstance(item, dict) for item in items)
+    ):
+        app.logger.warning('cart not valid: missing or invalid items')
+        return 'cart not valid', 400
+
+    has_shipping = any(item.get('sku') == 'SHIP' for item in items)
+
+    if not isinstance(cart.get('total'), (int, float)) or cart['total'] <= 0 or not has_shipping:
+        app.logger.warning('cart not valid: missing shipping or invalid total')
+        return 'cart not valid', 400
+
     anonymous_user = True
 
     # check user exists
@@ -67,17 +140,6 @@ def pay(id):
         return str(err), 500
     if req.status_code == 200:
         anonymous_user = False
-
-    # check that the cart is valid
-    # this will blow up if the cart is not valid
-    has_shipping = False
-    for item in cart.get('items'):
-        if item.get('sku') == 'SHIP':
-            has_shipping = True
-
-    if cart.get('total', 0) == 0 or has_shipping == False:
-        app.logger.warn('cart not valid')
-        return 'cart not valid', 400
 
     # dummy call to payment gateway, hope they dont object
     try:
