@@ -70,26 +70,12 @@ Observability components (namespace: observability)
 
 ## Reproducible observability installation
 
-These instructions assume the Capstone 1 EKS cluster already exists, the AWS EBS CSI driver is configured, and the repository is checked out. They reproduce the documented components; the original deployment's exact Helm values for Loki, Fluent Bit and Jaeger must first be exported and committed as **non-secret** configuration. Do not claim a fully reproducible clean-cluster rebuild until those exports have been reviewed and tested.
+These instructions assume the Capstone 1 EKS cluster, AWS EBS CSI driver, and container registry image are available. Run commands from the repository root. Chart versions match the observed deployment; a fresh-cluster end-to-end rebuild has not yet been tested.
 
-### A. Capture the installed chart values (one-time preparation)
-
-On the **existing working cluster**, export the *user-supplied* values (not `--all`, which includes large defaults) and verify the chart metadata:
+### A. Configure access and chart repositories
 
 ```bash
 aws eks update-kubeconfig --region ca-central-1 --name ts-academy-capstone-eks --profile terraform-capstone
-mkdir -p capstone2/logging capstone2/tracing
-helm list -n observability
-helm get values loki -n observability -o yaml > capstone2/logging/loki-values.yaml
-helm get values fluent-bit -n observability -o yaml > capstone2/logging/fluent-bit-values.yaml
-helm get values jaeger -n observability -o yaml > capstone2/tracing/jaeger-values.yaml
-```
-
-**Security checkpoint:** Inspect these files locally before staging or pushing. Helm values may contain passwords, tokens, or endpoints. Remove secrets and replace them with Kubernetes Secret references or documented placeholders; confirm the sanitized values still deploy. The Slack webhook belongs only in the Kubernetes Secret, never in Git. The collector's maintained values already live at `capstone2/tracing/otel-collector-values.yaml`.
-
-### B. Prepare chart repositories and namespace
-
-```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add fluent https://fluent.github.io/helm-charts
@@ -100,58 +86,82 @@ kubectl create namespace observability --dry-run=client -o yaml | kubectl apply 
 kubectl apply -f capstone2/gp3-storageclass.yaml
 ```
 
-### C. Deploy logging and tracing in dependency order
-
-These chart versions match the previously verified deployment. Run this block **after** exporting and reviewing the values files in Step A.
+### B. Install Loki (single-binary, persistent filesystem storage)
 
 ```bash
-helm upgrade --install loki grafana/loki -n observability \
-  --version 7.5.0 -f capstone2/logging/loki-values.yaml --wait --timeout 15m
-
-helm upgrade --install fluent-bit fluent/fluent-bit -n observability \
-  --version 0.58.3 -f capstone2/logging/fluent-bit-values.yaml --wait --timeout 10m
-
-helm upgrade --install jaeger jaegertracing/jaeger -n observability \
-  --version 4.16.1 -f capstone2/tracing/jaeger-values.yaml --wait --timeout 15m
-
-helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
-  -n observability --version 0.177.0 \
-  -f capstone2/tracing/otel-collector-values.yaml --wait --timeout 10m
+helm upgrade --install loki grafana/loki --namespace observability --version 7.5.0 -f capstone2/helm-values/loki-values.yaml --wait --timeout 15m
 ```
 
-Loki requires its chart-specific single-binary and storage settings, which must be preserved in the exported values. Fluent Bit must retain its Kubernetes metadata enrichment and Loki output configuration. Jaeger uses ephemeral storage in this lab. The collector receives OTLP on ports 4317/4318 and exports traces to `jaeger.observability.svc.cluster.local:4317`.
-
-### D. Deploy monitoring and Robot Shop integration
-
-The global AlertmanagerConfig references a Secret that must exist **before** applying the Slack configuration. Create it from a securely supplied environment variable (never paste the URL into source files or command history):
+### C. Install Fluent Bit (DaemonSet, Kubernetes logs to Loki)
 
 ```bash
-kubectl create secret generic robot-shop-slack-webhook -n observability \
-  --from-literal=webhook-url="$SLACK_WEBHOOK_URL" --dry-run=client -o yaml | kubectl apply -f -
+helm upgrade --install fluent-bit fluent/fluent-bit --namespace observability --version 0.58.3 -f capstone2/helm-values/fluent-bit-values.yaml --wait --timeout 10m
+```
 
-helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
-  -n observability --version 92.12.0 \
-  -f capstone2/monitoring/prometheus-values.yaml --wait --timeout 15m
+### D. Install Jaeger (ephemeral trace storage)
 
+```bash
+helm upgrade --install jaeger jaegertracing/jaeger --namespace observability --version 4.16.1 -f capstone2/helm-values/jaeger-values.yaml --wait --timeout 15m
+```
+
+### E. Install OpenTelemetry Collector
+
+```bash
+helm upgrade --install otel-collector open-telemetry/opentelemetry-collector --namespace observability --version 0.177.0 -f capstone2/tracing/otel-collector-values.yaml --wait --timeout 10m
+```
+
+### F. Install Prometheus Blackbox Exporter
+
+```bash
+helm upgrade --install blackbox-exporter prometheus-community/prometheus-blackbox-exporter --namespace observability --version 11.20.2 -f capstone2/helm-values/blackbox-exporter-values.yaml --wait --timeout 10m
+```
+
+### G. Install monitoring and alert routing
+
+Create the `robot-shop-slack-webhook` Secret securely **before** deploying monitoring. Set `SLACK_WEBHOOK_URL` in your shell without committing or printing its value. Avoid putting credentials in shell history.
+
+```bash
+test -n "${SLACK_WEBHOOK_URL:-}" || { echo 'SLACK_WEBHOOK_URL is not set'; exit 1; }
+kubectl create secret generic robot-shop-slack-webhook --namespace observability --from-literal=webhook-url="$SLACK_WEBHOOK_URL" --dry-run=client -o yaml | kubectl apply -f -
+helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --namespace observability --version 92.12.0 -f capstone2/monitoring/prometheus-values.yaml --wait --timeout 15m
 kubectl apply -f capstone2/monitoring/robot-shop-slack-alertmanagerconfig.yaml
 kubectl apply -f capstone2/monitoring/robot-shop-service-monitors.yaml
 kubectl apply -f capstone2/monitoring/robot-shop-slo-rules.yaml
 ```
 
-The `SLACK_WEBHOOK_URL` variable must be populated securely before running this block. The Robot Shop Helm deployment and load-generator commands appear in the earlier **Deploy and verify** section. Ensure the payment image referenced by the Helm chart is available and that the payment service exports Prometheus metrics and OTLP traces.
-
-### E. Verify each pipeline
+### H. Verify Kubernetes resources
 
 ```bash
 helm list -n observability
-kubectl get pods -n observability
+kubectl get pods,daemonsets -n observability
 kubectl get pods -n robot-shop
 kubectl get servicemonitor,prometheusrule,alertmanagerconfig -n observability
-kubectl get secret robot-shop-slack-webhook -n observability
-kubectl get daemonset -n observability
 ```
 
-Then verify in the UIs: Grafana metrics panels populate under load; Loki Explore returns payment logs; Jaeger returns a **new** payment request trace; and an authorized alert test reaches Slack. A healthy Helm release alone does not prove end-to-end observability.
+### I. Verify the end-to-end observability pipelines
+
+Access Grafana and Jaeger in separate terminals:
+
+```bash
+kubectl port-forward -n observability svc/monitoring-grafana 3000:80
+kubectl port-forward -n observability svc/jaeger 16686:16686
+```
+
+Visit Grafana at http://localhost:3000 and Jaeger at http://localhost:16686. Confirm payment request metrics, searchable Loki logs, a newly generated payment trace, and an authorized Slack alert test. The Robot Shop Helm deployment and load generator are documented in the next section.
+
+**Configuration files:**
+
+| Component | Repository path |
+|---|---|
+| Loki | `capstone2/helm-values/loki-values.yaml` |
+| Fluent Bit | `capstone2/helm-values/fluent-bit-values.yaml` |
+| Jaeger | `capstone2/helm-values/jaeger-values.yaml` |
+| Blackbox Exporter | `capstone2/helm-values/blackbox-exporter-values.yaml` |
+| OpenTelemetry Collector | `capstone2/tracing/otel-collector-values.yaml` |
+| Prometheus, Grafana, Alertmanager | `capstone2/monitoring/prometheus-values.yaml` |
+| ServiceMonitors | `capstone2/monitoring/robot-shop-service-monitors.yaml` |
+| SLO rules | `capstone2/monitoring/robot-shop-slo-rules.yaml` |
+| Slack routing | `capstone2/monitoring/robot-shop-slack-alertmanagerconfig.yaml` |
 
 ## Deploy and verify
 
